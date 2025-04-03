@@ -44,7 +44,12 @@
 
 -   [Matter SDK documentation page](https://project-chip.github.io/connectedhomeip-doc/index.html)
 
-# About
+# About SEALSQ
+SEALSQ is one of the very few Semiconductors companies in the world capable of developing certified secure microcontrollers and implementing post-quantum cryptography.
+
+The VaultIC292 is a ready-to-use secure microcontroller designed to bring a robust, unique digital identity to a device. It can be use in a Matter Device to store Credentials (PASE), PAI, DAC and private key to authenticate the device in MATTER ecosystem.
+
+# About MATTER
 
 Matter (formerly Project CHIP) creates more connections between more objects,
 simplifying development for manufacturers and increasing compatibility for
