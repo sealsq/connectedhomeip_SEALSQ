@@ -58,11 +58,11 @@ Please ask sales@sealsq.com for further informations
 SealSQ demo show how the VAULT-IC 292 can interact to secure you credential, DAC and Key to prove indentity of you device
 
 - Documentation about building and developing for **RaspberryPi** can be found in 
-[the build guide for rasberryPi for Vic292](vic292_rpi_matter.md)
+[the build guide for rasberryPi for Vic292](examples\platform\wisekey\doc\vic292_rpi_matter.md)
 - Documentation about building and developing for **esp32** can be found in 
-[the build guide for esp32 for Vic292](vic292_esp32_matter.md)
+[the build guide for esp32 for Vic292](examples\platform\wisekey\doc\vic292_esp32_matter.md)
 - Documentation about building and developing for **Nordic nRF platforms** can be found in 
-[the build guide for nrf connect for Vic292](vic292_nrf_matter.md)
+[the build guide for nrf connect for Vic292](examples\platform\wisekey\doc\vic292_nrf_matter.md)
 
 # About MATTER
 
