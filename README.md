@@ -53,6 +53,17 @@ To use our product, you need an access to https://git.sealsq.com/elib/sealsq-eli
 
 Please ask sales@sealsq.com for further informations
 
+# Building SealSQ demo
+
+SealSQ demo show how the VAULT-IC 292 can interact to secure you credential, DAC and Key to prove indentity of you device
+
+- Documentation about building and developing for **RaspberryPi** can be found in 
+[the build guide for rasberryPi for Vic292](vic292_rpi_matter.md)
+- Documentation about building and developing for **esp32** can be found in 
+[the build guide for esp32 for Vic292](vic292_esp32_matter.md)
+- Documentation about building and developing for **Nordic nRF platforms** can be found in 
+[the build guide for nrf connect for Vic292](vic292_nrf_matter.md)
+
 # About MATTER
 
 Matter (formerly Project CHIP) creates more connections between more objects,
