@@ -85,8 +85,6 @@ checkout v1.4.0.0_sealsq_v1.1
 For setup submodules run this following command:
 
 ```
-
-
 ./scripts/checkout_submodules.py --shallow --platform linux sealsq_vaultic_292
 ```
 
