@@ -1,0 +1,17 @@
+-------------------------------------------------------------------------
+ Author              :  SealSQ (formely Wisekey Semiconductors)
+ Date                :  4 March 2025
+ Description         :  VaultIC292 MATTER development kit RPI - ESP32 - nRF Connect
+ Version             :  1.4.0.0_SealSQ_1.1
+-------------------------------------------------------------------------
+
+History
+-------
+Version       Description
+
+1.0.0_rc1           Release candidate #1
+1.0.1_rc1           Implementation Elib vic292 for RaspberryPi 4
+1.0.2_rc1           Create example application for RaspberryPi: thermostat and lighting-app
+1.0.3_rc1           Implementation Elib Vic292 for Esp32 + create application lighting-app for esp32
+1.0.4_rc1           Update documentation
+1.4.0.0_SealSQ_1.1      Implementation Elib Vic292 nRF Connect + lighting-app example nRF Connect + documentation

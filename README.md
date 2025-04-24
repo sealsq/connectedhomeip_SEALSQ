@@ -49,6 +49,10 @@ SEALSQ is one of the very few Semiconductors companies in the world capable of d
 
 The VaultIC292 is a ready-to-use secure microcontroller designed to bring a robust, unique digital identity to a device. It can be use in a Matter Device to store Credentials (PASE), PAI, DAC and private key to authenticate the device in MATTER ecosystem.
 
+To use our product, you need an access to https://git.sealsq.com/elib/sealsq-elib-292
+
+Please ask sales@sealsq.com for further informations
+
 # About MATTER
 
 Matter (formerly Project CHIP) creates more connections between more objects,

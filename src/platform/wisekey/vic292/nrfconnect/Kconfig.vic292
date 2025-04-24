@@ -1,0 +1,66 @@
+menu "VaultIC Options"
+    config MATTER_VAULTIC_HW
+        bool "Use Secure Element (VaultIC)"
+        default y
+        help
+            Use VaultIC Secure Element to secure MATTER
+
+    choice VAULTIC_LOG_LEVEL
+        bool "Log verbosity"
+        default VAULTIC_LOG_LEVEL_ERROR
+        depends on MATTER_VAULTIC_HW
+        help
+            Specify how much output to see in logs.
+
+        config VAULTIC_LOG_LEVEL_NONE
+            bool "No output"
+        config VAULTIC_LOG_LEVEL_ERROR
+            bool "Error"
+        config VAULTIC_LOG_LEVEL_WARN
+            bool "Warning"
+        config VAULTIC_LOG_LEVEL_INFO
+            bool "Info"
+        config VAULTIC_LOG_LEVEL_VERBOSE
+            bool "Verbose"
+    endchoice
+
+    config VAULTIC_LOG_LEVEL
+        int
+        default 0 if VAULTIC_LOG_LEVEL_NONE
+        default 1 if VAULTIC_LOG_LEVEL_ERROR
+        default 2 if VAULTIC_LOG_LEVEL_WARN
+        default 3 if VAULTIC_LOG_LEVEL_INFO
+        default 4 if VAULTIC_LOG_LEVEL_VERBOSE
+
+    choice VAULTIC_INTERFACE
+        bool "Communication Interface"
+        default VAULTIC_COMM_I2C
+        depends on MATTER_VAULTIC_HW
+
+        config VAULTIC_COMM_SPI
+            bool "SPI"
+
+        config VAULTIC_COMM_I2C
+            bool "I2C"
+    endchoice
+
+    config VAULTIC_VCC_CONTROL
+        depends on MATTER_VAULTIC_HW
+        bool "Vcc Control with GPIO"
+        default y
+        help 
+            This option enables to control the VCC supply of the VaultIC using a GPIO
+
+    config PASSCODE
+        int "Passcode"
+        default 0
+        help
+            User passcode for verifier and salt Matter
+
+    config DISCRIMINATOR
+        int "Discriminator"
+        range 1000 9999
+        default 3840
+        help
+            Discriminator for commissioning
+endmenu
