@@ -53,20 +53,19 @@ Import zephyr environement
 source ncs/zephyr/zephyr-env.sh
 ```
 
-To check out the Matter repository and setup submodules, run the following
-command
+Clone the repos
 
 ```
 git clone https://github.com/sealsq/connectedhomeip_SEALSQ.git
+
+cd connectedhomeip_SEALSQ
+
+checkout v1.4.0.0_sealsq_v1.1
 ```
 
 For setup submodules run this following command
 
 ```
-cd connectedhomeip_SEALSQ
-
-checkout v1.4.0.0_sealsq_v1.1
-
 ./scripts/checkout_submodules.py --shallow --platform nrfconnect sealsq_vaultic_292
 ```
 
