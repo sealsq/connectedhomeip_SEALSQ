@@ -82,7 +82,7 @@ git clone https://github.com/sealsq/connectedhomeip_SEALSQ.git
 For setup submodules run this following command:
 
 ```
-cd connectedhomeip
+cd connectedhomeip_SEALSQ
 
 checkout v1.4.0.0_sealsq_v1.1
 
@@ -165,7 +165,7 @@ The lighting application is now running.
 Switch back to another terminal, after run this command:
 
 ```
-cd connectedhomeip/
+cd connectedhomeip_SEALSQ/
 
 source scripts/activate.sh
 
