@@ -345,3 +345,6 @@
 	path = third_party/re2/src
 	url = https://github.com/google/re2.git
 	platforms = linux,darwin
+[submodule "src/platform/wisekey/vic292/VaultIC-Elib_292"]
+	path = src/platform/wisekey/vic292/VaultIC-Elib_292
+	url = https://git.sealsq.com/elib/292/sealsq-elib-292.git
