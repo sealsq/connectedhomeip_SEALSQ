@@ -66,7 +66,7 @@ checkout v1.4.0.0_sealsq_v1.1
 For setup submodules run this following command
 
 ```
-./scripts/checkout_submodules.py --shallow --platform nrfconnect sealsq_vaultic_292
+./scripts/checkout_submodules.py --shallow --platform nrfconnect linux sealsq_vaultic_292
 ```
 
 Setup dev environement (take 5-10minutes):
