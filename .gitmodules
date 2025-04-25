@@ -348,3 +348,4 @@
 [submodule "src/platform/wisekey/vic292/VaultIC-Elib_292"]
 	path = src/platform/wisekey/vic292/VaultIC-Elib_292
 	url = https://git.sealsq.com/elib/292/sealsq-elib-292.git
+	platforms = sealsq_vaultic_292
