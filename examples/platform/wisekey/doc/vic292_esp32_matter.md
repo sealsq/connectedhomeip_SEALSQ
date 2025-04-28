@@ -139,7 +139,7 @@ idfx flash COM12 monitor
 
 #### Find Port Number on Linux
 
-1. Open terminal and type: ls /dev/tty\*.
+1. Open terminal and type: ls /dev/tty\*
 2. Note the port number listed for /dev/ttyUSB* or /dev/ttyACM*. The port number
    is represented with \* here.
 3. Use the listed port as the serial port in MATLAB®. For example: /dev/ttyUSB0.

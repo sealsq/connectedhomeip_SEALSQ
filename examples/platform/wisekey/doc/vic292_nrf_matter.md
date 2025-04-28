@@ -239,7 +239,7 @@ cd build/bin
 
 arm-none-eabi-objcopy -O ihex ot-rcp ot-rcp.hex
 
-nrfjprog -f nrf52 -s (board serial number) --verify --chiperase --program ot-nrf528xx/build/bin/ot-rcp.hex --reset
+nrfjprog -f nrf52 -s (board serial number) --verify --chiperase --program ot-rcp.hex --reset
 ```
 
 The following output is generated upon success:
@@ -288,9 +288,7 @@ On your Home Assistant app on your phone, go to Settings -> Devices and services
 -> Thread -> CONFIGURE and click on "Send credentials to home assistant" and
 "Send credential to phone"
 
-![Thread service](img/threadMobile.png){ width=400 height=800 }
-![Thread credentials](img/sendCredentialThread.png){ width=400 height=800 }
-
+![Thread service](img/threadMobile.png){ width=400 height=800 }  ![Thread credentials](img/sendCredentialThread.png){ width=400 height=800 }   
 Note: you may need to reboot Home Assistant for the changes to apply correctly.
 
 #### Comissionning Matter device

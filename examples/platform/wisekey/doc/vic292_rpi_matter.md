@@ -94,19 +94,6 @@ Setup dev environement (take 10-20minutes):
 source scripts/activate.sh
 ```
 
-If you have an error like
-
-```
-cannot import name 'OneStyleAndTextTuple' from 'prompt_toolkit.formatted_text'
-```
-
-excute this 2 commands :
-
-```
-pip install --upgrade --force-reinstall prompt_toolkit
-source scripts/activate.sh
-```
-
 ## Build examples
 
 ### Chip-Tool
