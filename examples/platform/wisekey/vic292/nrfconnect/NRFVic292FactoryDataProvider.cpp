@@ -1,0 +1,404 @@
+/*
+ *
+ *    Copyright (c) 2022 Project CHIP Authors
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
+#include <platform/nrfconnect/CHIPDevicePlatformConfig.h>
+#include <crypto/CHIPCryptoPAL.h>
+
+#ifdef CONFIG_CHIP_CERTIFICATION_DECLARATION_STORAGE
+#include <credentials/CertificationDeclaration.h>
+#include <platform/Zephyr/ZephyrConfig.h>
+#endif
+
+#include "NRFVic292FactoryDataProvider.h"
+
+#include "vaultic_matter_config.h"
+#include "vaultic_matter_priv.h"
+#include "vaultic_matter.h"
+#include "vaultic_common.h"
+#include "vaultic_api.h"
+
+#include <zephyr/logging/log.h>
+
+LOG_MODULE_DECLARE(app, CONFIG_CHIP_APP_LOG_LEVEL);
+
+namespace chip {
+
+namespace {
+
+CHIP_ERROR GetFactoryDataString(const FactoryDataString & str, char * buf, size_t bufSize)
+{
+    ReturnErrorCodeIf(bufSize < str.len + 1, CHIP_ERROR_BUFFER_TOO_SMALL);
+    ReturnErrorCodeIf(!str.data, CHIP_ERROR_PERSISTED_STORAGE_VALUE_NOT_FOUND);
+
+    memcpy(buf, str.data, str.len);
+    buf[str.len] = 0;
+
+    return CHIP_NO_ERROR;
+}
+
+} // namespace
+
+namespace DeviceLayer {
+
+using namespace chip::Credentials;
+using namespace chip::DeviceLayer;
+
+template <class FlashFactoryData>
+CHIP_ERROR NRFVic292FactoryDataProvider<FlashFactoryData>::Init(void)
+{
+    uint8_t * factoryData = nullptr;
+    size_t factoryDataSize;
+
+    CHIP_ERROR error = mFlashFactoryData.ProtectFactoryDataPartitionAgainstWrite();
+
+    // Protection against write for external storage is not supported.
+    if (error == CHIP_ERROR_NOT_IMPLEMENTED)
+    {
+        ChipLogProgress(DeviceLayer, "The device does not support hardware protection against write.");
+        error = CHIP_NO_ERROR;
+    }
+    else if (error != CHIP_NO_ERROR)
+    {
+        ChipLogError(DeviceLayer, "Failed to protect the factory data partition.");
+        return error;
+    }
+
+    error = mFlashFactoryData.GetFactoryDataPartition(factoryData, factoryDataSize);
+
+    if (error != CHIP_NO_ERROR)
+    {
+        ChipLogError(DeviceLayer, "Failed to read factory data partition");
+        return error;
+    }
+
+    if (!ParseFactoryData(factoryData, static_cast<uint16_t>(factoryDataSize), &mFactoryData))
+    {
+        ChipLogError(DeviceLayer, "Failed to parse factory data");
+        return CHIP_ERROR_PERSISTED_STORAGE_VALUE_NOT_FOUND;
+    }
+
+    // Check if factory data version is correct
+    if (mFactoryData.version != CONFIG_CHIP_FACTORY_DATA_VERSION)
+    {
+        ChipLogError(DeviceLayer, "Factory data version mismatch. Flash version: %d vs code version: %d", mFactoryData.version,
+                     CONFIG_CHIP_FACTORY_DATA_VERSION);
+        return CHIP_ERROR_VERSION_MISMATCH;
+    }
+
+    return CHIP_NO_ERROR;
+}
+
+template <class FlashFactoryData>
+CHIP_ERROR NRFVic292FactoryDataProvider<FlashFactoryData>::GetSetupDiscriminator(uint16_t & setupDiscriminator)
+{
+    // Use config discrimator provide by user in menuconfig
+    setupDiscriminator = CONFIG_DISCRIMINATOR;
+    return CHIP_NO_ERROR;
+}
+
+template <class FlashFactoryData>
+CHIP_ERROR NRFVic292FactoryDataProvider<FlashFactoryData>::GetSpake2pIterationCount(uint32_t & iterationCount)
+{
+    if(vlt_matter_is_init() == FALSE)
+    {
+        ReturnErrorOnFailure(vlt_matter_init());
+    }
+
+    LOG_INF("Get Iteration from vic292");
+
+    VLT_U32 it;
+
+    ReturnErrorOnFailure(vlt_matter_get_iteration((&it)));
+    iterationCount = (uint32_t)it;
+    return CHIP_NO_ERROR;
+}
+
+template <class FlashFactoryData>
+CHIP_ERROR NRFVic292FactoryDataProvider<FlashFactoryData>::GetSpake2pSalt(MutableByteSpan & saltBuf)
+{
+    if(vlt_matter_is_init() == FALSE)
+    {
+        ReturnErrorOnFailure(vlt_matter_init());
+    }
+
+    LOG_INF("Get Salt from vic292");
+
+    ReturnErrorOnFailure(vlt_matter_get_salt(saltBuf.data()));
+    saltBuf.reduce_size(VIC292_SALT_SIZE);
+    return CHIP_NO_ERROR;
+}
+
+template <class FlashFactoryData>
+CHIP_ERROR NRFVic292FactoryDataProvider<FlashFactoryData>::GetSpake2pVerifier(MutableByteSpan & verifierBuf, size_t & verifierLen)
+{
+    if(vlt_matter_is_init() == FALSE)
+    {
+        ReturnErrorOnFailure(vlt_matter_init());
+    }
+
+    LOG_INF("Get Verifier from vic292");
+
+    ReturnErrorOnFailure(vlt_matter_read_verifier(verifierBuf.data()));
+    verifierBuf.reduce_size(VIC292_VERIFIER_SIZE);
+    verifierLen = VIC292_VERIFIER_SIZE;
+    return CHIP_NO_ERROR;
+}
+
+template <class FlashFactoryData>
+CHIP_ERROR NRFVic292FactoryDataProvider<FlashFactoryData>::GetSetupPasscode(uint32_t & setupPasscode)
+{
+    // Use config passcode provide by user in menuconfig
+    setupPasscode = CONFIG_PASSCODE;
+    return CHIP_NO_ERROR;
+}
+
+template <class FlashFactoryData>
+CHIP_ERROR NRFVic292FactoryDataProvider<FlashFactoryData>::GetCertificationDeclaration(MutableByteSpan & outBuffer)
+{
+    const uint8_t kCdForAllExamples[] = CHIP_DEVICE_CONFIG_CERTIFICATION_DECLARATION;
+
+    LOG_INF("Get Certificate Declaration");
+
+    return CopySpanToMutableSpan(ByteSpan{ kCdForAllExamples }, outBuffer);
+}
+
+template <class FlashFactoryData>
+CHIP_ERROR NRFVic292FactoryDataProvider<FlashFactoryData>::GetFirmwareInformation(MutableByteSpan & out_firmware_info_buffer)
+{
+    // We do not provide any FirmwareInformation.
+    out_firmware_info_buffer.reduce_size(0);
+    return CHIP_NO_ERROR;
+}
+
+template <class FlashFactoryData>
+CHIP_ERROR NRFVic292FactoryDataProvider<FlashFactoryData>::GetDeviceAttestationCert(MutableByteSpan & outBuffer)
+{
+    if(vlt_matter_is_init() == FALSE)
+    {
+        ReturnErrorOnFailure(vlt_matter_init());
+    }
+
+    LOG_INF("Get DAC certificate from vic292");
+
+    size_t sizeof_dac_cert = vlt_matter_get_cert_size(SSL_VIC_DAC_CERT);
+
+    ReturnErrorOnFailure(vlt_matter_read_dac(outBuffer.data()));
+    outBuffer.reduce_size(sizeof_dac_cert);
+    return CHIP_NO_ERROR;
+}
+
+template <class FlashFactoryData>
+CHIP_ERROR NRFVic292FactoryDataProvider<FlashFactoryData>::GetProductAttestationIntermediateCert(MutableByteSpan & outBuffer)
+{
+    if(vlt_matter_is_init() == FALSE)
+    {
+        ReturnErrorOnFailure(vlt_matter_init());
+    }
+
+    LOG_INF("Get PAI certificate from vic292");
+
+    size_t sizeof_pai_cert = vlt_matter_get_cert_size(SSL_VIC_PAI_CERT);
+
+    ReturnErrorOnFailure(vlt_matter_read_pai(outBuffer.data()));
+    outBuffer.reduce_size(sizeof_pai_cert);
+    return CHIP_NO_ERROR;
+}
+
+template <class FlashFactoryData>
+CHIP_ERROR NRFVic292FactoryDataProvider<FlashFactoryData>::SignWithDeviceAttestationKey(const ByteSpan & messageToSign, MutableByteSpan & outSignBuffer)
+{
+    VLT_U8 signature[VLT_LEN_SIGNATURE];
+    VLT_U8  hash[VLT_LEN_DIGEST];
+
+    if(vlt_matter_is_init() == FALSE)
+    {
+        ReturnErrorOnFailure(vlt_matter_init());
+    }
+
+    LOG_INF("Get Attestation Signature from vic292");
+
+    VerifyOrReturnError(!outSignBuffer.empty(), CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(!messageToSign.empty(), CHIP_ERROR_INVALID_ARGUMENT);
+
+    ReturnErrorOnFailure(Crypto::Hash_SHA256(messageToSign.data(), messageToSign.size(), hash));
+
+    ReturnErrorOnFailure(vlt_matter_generate_signature(0, KEY_GROUP_KEYRING, hash, signature));
+
+    ReturnErrorOnFailure(vlt_matter_close());
+
+    return CopySpanToMutableSpan(ByteSpan{ signature, sizeof(signature) }, outSignBuffer);
+}
+
+template <class FlashFactoryData>
+CHIP_ERROR NRFVic292FactoryDataProvider<FlashFactoryData>::GetVendorName(char * buf, size_t bufSize)
+{
+    return GetFactoryDataString(mFactoryData.vendor_name, buf, bufSize);
+}
+
+template <class FlashFactoryData>
+CHIP_ERROR NRFVic292FactoryDataProvider<FlashFactoryData>::GetVendorId(uint16_t & vendorId)
+{
+    VerifyOrReturnError(mFactoryData.vendorIdPresent, CHIP_ERROR_PERSISTED_STORAGE_VALUE_NOT_FOUND);
+    vendorId = mFactoryData.vendor_id;
+    return CHIP_NO_ERROR;
+}
+
+template <class FlashFactoryData>
+CHIP_ERROR NRFVic292FactoryDataProvider<FlashFactoryData>::GetProductName(char * buf, size_t bufSize)
+{
+    return GetFactoryDataString(mFactoryData.product_name, buf, bufSize);
+}
+
+template <class FlashFactoryData>
+CHIP_ERROR NRFVic292FactoryDataProvider<FlashFactoryData>::GetProductId(uint16_t & productId)
+{
+    VerifyOrReturnError(mFactoryData.productIdPresent, CHIP_ERROR_PERSISTED_STORAGE_VALUE_NOT_FOUND);
+    productId = mFactoryData.product_id;
+    return CHIP_NO_ERROR;
+}
+
+template <class FlashFactoryData>
+CHIP_ERROR NRFVic292FactoryDataProvider<FlashFactoryData>::GetPartNumber(char * buf, size_t bufSize)
+{
+    return GetFactoryDataString(mFactoryData.part_number, buf, bufSize);
+}
+
+template <class FlashFactoryData>
+CHIP_ERROR NRFVic292FactoryDataProvider<FlashFactoryData>::GetProductURL(char * buf, size_t bufSize)
+{
+    return GetFactoryDataString(mFactoryData.product_url, buf, bufSize);
+}
+
+template <class FlashFactoryData>
+CHIP_ERROR NRFVic292FactoryDataProvider<FlashFactoryData>::GetProductLabel(char * buf, size_t bufSize)
+{
+    return GetFactoryDataString(mFactoryData.product_label, buf, bufSize);
+}
+
+template <class FlashFactoryData>
+CHIP_ERROR NRFVic292FactoryDataProvider<FlashFactoryData>::GetSerialNumber(char * buf, size_t bufSize)
+{
+    return GetFactoryDataString(mFactoryData.sn, buf, bufSize);
+}
+
+template <class FlashFactoryData>
+CHIP_ERROR NRFVic292FactoryDataProvider<FlashFactoryData>::GetManufacturingDate(uint16_t & year, uint8_t & month, uint8_t & day)
+{
+    VerifyOrReturnError(mFactoryData.date_year != 0, CHIP_ERROR_PERSISTED_STORAGE_VALUE_NOT_FOUND);
+    year  = mFactoryData.date_year;
+    month = mFactoryData.date_month;
+    day   = mFactoryData.date_day;
+    return CHIP_NO_ERROR;
+}
+
+template <class FlashFactoryData>
+CHIP_ERROR NRFVic292FactoryDataProvider<FlashFactoryData>::GetHardwareVersion(uint16_t & hardwareVersion)
+{
+    VerifyOrReturnError(mFactoryData.hwVerPresent, CHIP_ERROR_PERSISTED_STORAGE_VALUE_NOT_FOUND);
+    hardwareVersion = mFactoryData.hw_ver;
+    return CHIP_NO_ERROR;
+}
+
+template <class FlashFactoryData>
+CHIP_ERROR NRFVic292FactoryDataProvider<FlashFactoryData>::GetHardwareVersionString(char * buf, size_t bufSize)
+{
+    return GetFactoryDataString(mFactoryData.hw_ver_str, buf, bufSize);
+}
+
+template <class FlashFactoryData>
+CHIP_ERROR NRFVic292FactoryDataProvider<FlashFactoryData>::GetRotatingDeviceIdUniqueId(MutableByteSpan & uniqueIdSpan)
+{
+    ReturnErrorCodeIf(uniqueIdSpan.size() < mFactoryData.rd_uid.len, CHIP_ERROR_BUFFER_TOO_SMALL);
+    ReturnErrorCodeIf(!mFactoryData.rd_uid.data, CHIP_ERROR_PERSISTED_STORAGE_VALUE_NOT_FOUND);
+
+    memcpy(uniqueIdSpan.data(), mFactoryData.rd_uid.data, mFactoryData.rd_uid.len);
+
+    uniqueIdSpan.reduce_size(mFactoryData.rd_uid.len);
+
+    return CHIP_NO_ERROR;
+}
+
+template <class FlashFactoryData>
+CHIP_ERROR NRFVic292FactoryDataProvider<FlashFactoryData>::GetEnableKey(MutableByteSpan & enableKey)
+{
+    ReturnErrorCodeIf(!mFactoryData.enable_key.data, CHIP_ERROR_PERSISTED_STORAGE_VALUE_NOT_FOUND);
+    ReturnErrorCodeIf(enableKey.size() < mFactoryData.enable_key.len, CHIP_ERROR_BUFFER_TOO_SMALL);
+
+    memcpy(enableKey.data(), mFactoryData.enable_key.data, mFactoryData.enable_key.len);
+
+    enableKey.reduce_size(mFactoryData.enable_key.len);
+
+    return CHIP_NO_ERROR;
+}
+
+template <class FlashFactoryData>
+CHIP_ERROR NRFVic292FactoryDataProvider<FlashFactoryData>::GetProductFinish(app::Clusters::BasicInformation::ProductFinishEnum * finish)
+{
+    ReturnErrorCodeIf(!finish, CHIP_ERROR_INVALID_ARGUMENT);
+    ReturnErrorCodeIf(!mFactoryData.productFinishPresent, CHIP_ERROR_NOT_IMPLEMENTED);
+    *finish = static_cast<app::Clusters::BasicInformation::ProductFinishEnum>(mFactoryData.product_finish);
+
+    return CHIP_NO_ERROR;
+}
+
+template <class FlashFactoryData>
+CHIP_ERROR NRFVic292FactoryDataProvider<FlashFactoryData>::GetProductPrimaryColor(app::Clusters::BasicInformation::ColorEnum * primaryColor)
+{
+    ReturnErrorCodeIf(!primaryColor, CHIP_ERROR_INVALID_ARGUMENT);
+    ReturnErrorCodeIf(!mFactoryData.primaryColorPresent, CHIP_ERROR_NOT_IMPLEMENTED);
+
+    *primaryColor = static_cast<app::Clusters::BasicInformation::ColorEnum>(mFactoryData.primary_color);
+
+    return CHIP_NO_ERROR;
+}
+
+template <class FlashFactoryData>
+CHIP_ERROR NRFVic292FactoryDataProvider<FlashFactoryData>::GetUserData(MutableByteSpan & userData)
+{
+    ReturnErrorCodeIf(!mFactoryData.user.data, CHIP_ERROR_PERSISTED_STORAGE_VALUE_NOT_FOUND);
+    ReturnErrorCodeIf(userData.size() < mFactoryData.user.len, CHIP_ERROR_BUFFER_TOO_SMALL);
+
+    memcpy(userData.data(), mFactoryData.user.data, mFactoryData.user.len);
+
+    userData.reduce_size(mFactoryData.user.len);
+
+    return CHIP_NO_ERROR;
+}
+
+template <class FlashFactoryData>
+CHIP_ERROR NRFVic292FactoryDataProvider<FlashFactoryData>::GetUserKey(const char * userKey, void * buf, size_t & len)
+{
+    ReturnErrorCodeIf(!mFactoryData.user.data, CHIP_ERROR_PERSISTED_STORAGE_VALUE_NOT_FOUND);
+    ReturnErrorCodeIf(!buf, CHIP_ERROR_BUFFER_TOO_SMALL);
+
+    bool success = FindUserDataEntry(&mFactoryData, userKey, buf, len, &len);
+
+    ReturnErrorCodeIf(!success, CHIP_ERROR_PERSISTED_STORAGE_VALUE_NOT_FOUND);
+
+    return CHIP_NO_ERROR;
+}
+
+// Fully instantiate the template class in whatever compilation unit includes this file.
+template class NRFVic292FactoryDataProvider<InternalFlashFactoryData>;
+#if defined(USE_PARTITION_MANAGER) && USE_PARTITION_MANAGER == 1 && (defined(CONFIG_CHIP_QSPI_NOR) || defined(CONFIG_CHIP_SPI_NOR))
+template class NRFVic292FactoryDataProvider<ExternalFlashFactoryData>;
+#endif // if defined(USE_PARTITION_MANAGER) && USE_PARTITION_MANAGER == 1 (defined(CONFIG_CHIP_QSPI_NOR) ||
+       // defined(CONFIG_CHIP_SPI_NOR))
+
+
+} // namespace DeviceLayer
+} // namespace chip
